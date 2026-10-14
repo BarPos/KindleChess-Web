@@ -157,8 +157,11 @@ const moveRating = computed(() => {
 
 function scrollToCurrentMove() {
   nextTick(() => {
-    const selected = moveListEl.value?.querySelector(".move-row.is-selected")
-    selected?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    const list = moveListEl.value
+    const selected = list?.querySelector(".move-row.is-selected")
+    if (!list || !selected) return
+    const top = list.scrollTop + selected.getBoundingClientRect().top - list.getBoundingClientRect().top
+    list.scrollTo({ top, behavior: "smooth" })
   })
 }
 

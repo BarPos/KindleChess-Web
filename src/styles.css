@@ -618,6 +618,17 @@ code {
   text-align: left;
 }
 
+.move-rating[data-grade="brilliant"] { color: #1baca6; }
+.move-rating[data-grade="great"] { color: #5b8fb9; }
+.move-rating[data-grade="best"] { color: #96bc4b; }
+.move-rating[data-grade="excellent"] { color: #96bc4b; }
+.move-rating[data-grade="good"] { color: #96af8c; }
+.move-rating[data-grade="book"] { color: #a88865; }
+.move-rating[data-grade="inaccuracy"] { color: #f0c02f; }
+.move-rating[data-grade="mistake"] { color: #e6912c; }
+.move-rating[data-grade="miss"] { color: #e6912c; }
+.move-rating[data-grade="blunder"] { color: #ca3431; }
+
 .move-list {
   border-top: 2px solid #000;
   max-height: 360px;
