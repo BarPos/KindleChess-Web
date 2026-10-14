@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import { Chess } from "chess.js"
 import ChessBoard from "./ChessBoard.vue"
-import { analyzeFen, stopEngine } from "../lib/engine"
+import { analyzeFen, disposeEngine, stopEngine } from "../lib/engine"
 import { courseFor, openingReport, rememberGame, recordFor } from "../lib/openings"
 import {
   CLASS_LABEL,
@@ -217,16 +217,20 @@ onMounted(async () => {
     }
     analyzing.value = false
     status.value = ""
+    // Free the WASM heap after the review is graded; leaving it alive OOMs on reopen.
+    disposeEngine()
   } catch (error) {
     analyzing.value = false
     failed.value = error.message || "Stockfish could not start on this phone."
     status.value = failed.value
+    disposeEngine()
   }
 })
 
 onUnmounted(() => {
   alive = false
   stopEngine()
+  disposeEngine()
   window.removeEventListener("keydown", onKey)
 })
 </script>
