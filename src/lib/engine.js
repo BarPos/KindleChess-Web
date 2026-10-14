@@ -9,13 +9,6 @@ function fail(message) {
   throw error
 }
 
-function isPhone() {
-  return (
-    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-    (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent))
-  )
-}
-
 async function start() {
   if (typeof window === "undefined") fail("Stockfish runs in the browser on this phone.")
   if (!window.crossOriginIsolated) {
@@ -24,27 +17,17 @@ async function start() {
   const engineUrl = new URL("/engine/sf_19_smallnet.js", window.location.href).href
   const loadModule = new Function("url", "return import(url)")
   const createEngine = (await loadModule(engineUrl)).default
-  const errors = []
-  const created = await createEngine({
-    mainScriptUrlOrBlob: engineUrl,
-    locateFile: (file) => new URL(file, engineUrl).href,
-    onError: (line) => {
-      errors.push(String(line))
-    }
-  })
+  const created = await createEngine()
   const network = created.getRecommendedNnue(0)
   const response = await fetch("/engine/" + network)
   if (!response.ok) fail("The Stockfish network did not load.")
   created.setNnueBuffer(new Uint8Array(await response.arrayBuffer()))
-  await command(created, "uci", (line) => line === "uciok", errors)
-  // Extra pthread workers often hang on iOS/Android WebKit. One thread is enough on a phone.
-  const phone = isPhone()
-  const threads = phone ? 1 : Math.max(1, Math.min(2, navigator.hardwareConcurrency || 1))
-  const hash = phone ? 16 : 64
+  await command(created, "uci", (line) => line === "uciok")
+  const threads = Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2))
   created.uci("setoption name Threads value " + threads)
-  created.uci("setoption name Hash value " + hash)
+  created.uci("setoption name Hash value 64")
   created.uci("setoption name MultiPV value 2")
-  await command(created, "isready", (line) => line === "readyok", errors)
+  await command(created, "isready", (line) => line === "readyok")
   engine = created
   return created
 }
