@@ -79,6 +79,10 @@ export function classifyMove(move, before, after, beforeChess, afterChess, isBoo
   if (bestExp == null || playedExp == null) return ""
   const loss = Math.max(0, bestExp - playedExp)
   const playedBest = move.uci === before.bestUci || move.uci === before.best?.uci
+  const isDisplayedRecommendation = isRecommendedMove(move, before)
+  // The board shows these same two MultiPV lines as recommendations. Keep move
+  // grades consistent with the choices the user can see and follow.
+  if (isDisplayedRecommendation && !playedBest) return "excellent"
   const nearBest = playedBest || loss < 0.005
   if (nearBest) {
     const drop = material(beforeChess, move.color) - material(afterChess, move.color)
@@ -93,6 +97,12 @@ export function classifyMove(move, before, after, beforeChess, afterChess, isBoo
   if (loss < 0.1) return "inaccuracy"
   if (loss < 0.2) return "mistake"
   return "blunder"
+}
+
+export function isRecommendedMove(move, analysis) {
+  if (!move?.uci || !analysis) return false
+  const displayedLines = analysis.lines?.slice(0, 2) || [analysis.best, analysis.second].filter(Boolean)
+  return displayedLines.some((line) => line?.uci === move.uci)
 }
 
 export function moveAccuracy(bestExp, playedExp) {

@@ -10,6 +10,7 @@ import {
   classifyMove,
   estimatedRating,
   formatEval,
+  isRecommendedMove,
   moveAccuracy,
   phaseOf,
   tally,
@@ -167,6 +168,9 @@ const explanation = computed(() => {
   if (!before?.best || !after?.best) return "The engine needs both positions analyzed before it can explain this move."
   const bestMove = sanFor(positions[ply.value - 1], before.best.uci)
   const loss = moveLoss(before.best, after.best, positions[ply.value]) * 100
+  if (isRecommendedMove(played.value, before) && played.value.uci !== before.best?.uci) {
+    return `Excellent: Stockfish showed this as its second recommended line. Its top choice was ${bestMove}; the evaluation difference is about ${loss.toFixed(1)} percentage points of expected score.`
+  }
   if (grade.value === "miss" && before.best.mate != null) {
     return `You missed a forced mate. The engine preferred ${bestMove}${before.best.mate === 1 ? ", which checkmates in one" : `, which mates in ${Math.abs(before.best.mate)} moves`}.`
   }
@@ -246,6 +250,9 @@ const variationRatingExplanation = computed(() => {
   if (!best) return "The position before this move has not been analyzed yet."
   const bestMove = sanFor(variation.value.beforeFen, best.uci)
   const loss = moveLoss(best, variation.value.analysis, variation.value.fen) * 100
+  if (isRecommendedMove(variation.value.move, variation.value.beforeAnalysis) && variation.value.move.uci !== best.uci) {
+    return `Stockfish showed this as its second recommended line. Its top choice was ${bestMove}; the evaluation difference is about ${loss.toFixed(1)} percentage points of expected score.`
+  }
   if (variationGrade.value === "miss" && best.mate != null && best.mate > 0) {
     return `The top move ${bestMove} had a forced mate. This move misses it.`
   }
