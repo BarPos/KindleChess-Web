@@ -629,6 +629,43 @@ code {
 .move-rating[data-grade="miss"] { color: #e6912c; }
 .move-rating[data-grade="blunder"] { color: #ca3431; }
 
+.move-explanation {
+  margin: 2px 0 0;
+  font-size: clamp(16px, 2vw, 20px);
+  line-height: 1.4;
+}
+
+.restore-button {
+  margin-top: 8px;
+}
+
+.promotion-choice {
+  border: 3px solid #000;
+  padding: 10px;
+}
+
+.promotion-choice p {
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.promotion-recommendation {
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.promotion-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.promotion-options button {
+  font-size: 16px;
+  padding: 8px 12px;
+}
+
 .move-list {
   border-top: 2px solid #000;
   max-height: 360px;
