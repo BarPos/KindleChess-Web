@@ -258,6 +258,18 @@ const variationRatingExplanation = computed(() => {
   }
   return `Stockfish’s top choice was ${bestMove}. This move gives up about ${loss.toFixed(1)} percentage points of expected score.`
 })
+const variationMoveEntries = computed(() => {
+  if (!variation.value?.startFen) return []
+  const chess = new Chess(variation.value.startFen)
+  const nodes = variation.value.history.concat(variation.value)
+  return nodes.map((node) => {
+    const color = chess.turn()
+    const number = chess.moveNumber()
+    const label = (color === "w" ? `${number}. ` : `${number}... `) + node.move.san
+    try { chess.move(node.move.san) } catch (ignore) { /* Keep the remaining saved line visible. */ }
+    return { node, label }
+  })
+})
 const promotionRecommendation = computed(() => {
   if (!pendingPromotion.value.length || !currentRecommendation.value?.uci) return "Stockfish is still analyzing this position."
   const best = currentRecommendation.value.uci
@@ -305,6 +317,9 @@ async function explore(move) {
   const requestId = ++variationRequestId
   const baseFen = variation.value?.fen || positions[ply.value]
   const previousPath = variation.value?.path || []
+  const startFen = variation.value?.startFen || baseFen
+  const previousHistory = variation.value?.history || []
+  const previousNode = variation.value
   const beforeAnalysis = variation.value?.afterAnalysis || analyses.value[ply.value]
   const chess = new Chess(baseFen)
   const played = chess.move({ from: move.from, to: move.to, promotion: move.promotion || undefined })
@@ -321,7 +336,7 @@ async function explore(move) {
   }
   variationBusy.value = true
   variationError.value = ""
-  const selectedVariation = { requestId, move: playedMove, path: previousPath.concat(played.san), beforeFen: baseFen, beforeAnalysis, fen: chess.fen(), analysis: chess.isCheckmate() ? { uci: "", mate: -1, cp: null } : chess.isDraw() ? { uci: "", mate: null, cp: 0 } : null, afterAnalysis: null }
+  const selectedVariation = { requestId, move: playedMove, path: previousPath.concat(played.san), startFen, history: previousNode ? previousHistory.concat(previousNode) : previousHistory, beforeFen: baseFen, beforeAnalysis, fen: chess.fen(), analysis: chess.isCheckmate() ? { uci: "", mate: -1, cp: null } : chess.isDraw() ? { uci: "", mate: null, cp: 0 } : null, afterAnalysis: null }
   variation.value = selectedVariation
   if (variation.value.analysis) {
     selectedVariation.afterAnalysis = { turn: chess.turn(), best: null, second: null, bestUci: "" }
@@ -355,6 +370,30 @@ function restoreGame() {
   pendingPromotion.value = []
 }
 
+function previousStep() {
+  if (!variation.value) {
+    go(ply.value - 1)
+    return
+  }
+  if (!variation.value.history.length) {
+    restoreGame()
+    return
+  }
+  variation.value = variation.value.history[variation.value.history.length - 1]
+  variationBusy.value = false
+  variationError.value = ""
+  selectedSquare.value = ""
+  pendingPromotion.value = []
+}
+
+function selectVariationNode(node) {
+  variation.value = node
+  variationBusy.value = false
+  variationError.value = ""
+  selectedSquare.value = ""
+  pendingPromotion.value = []
+}
+
 function scrollToCurrentMove() {
   nextTick(() => {
     const list = moveListEl.value
@@ -367,6 +406,7 @@ function scrollToCurrentMove() {
 
 watch(ply, scrollToCurrentMove)
 watch(grades, scrollToCurrentMove)
+watch(variation, scrollToCurrentMove)
 
 function average(values) {
   if (!values.length) return null
@@ -463,10 +503,16 @@ onUnmounted(() => {
           </div>
         </div>
         <div v-if="moves.length" class="transport">
-          <button type="button" @click="go(0)">Start</button>
-          <button type="button" @click="go(ply - 1)">Previous</button>
-          <button type="button" @click="go(ply + 1)">Next</button>
-          <button type="button" @click="go(positions.length - 1)">End</button>
+          <template v-if="variation">
+            <button type="button" @click="restoreGame">Go back to game analysis</button>
+            <button type="button" @click="previousStep">Previous</button>
+          </template>
+          <template v-else>
+            <button type="button" @click="go(0)">Start</button>
+            <button type="button" @click="previousStep">Previous</button>
+            <button type="button" @click="go(ply + 1)">Next</button>
+            <button type="button" @click="go(positions.length - 1)">End</button>
+          </template>
         </div>
         <div class="move-callout">
           <div v-if="pendingPromotion.length" class="promotion-choice">
@@ -478,12 +524,10 @@ onUnmounted(() => {
           </div>
           <template v-if="variation">
             <p class="move-rating" :data-grade="variationGrade || undefined">{{ variationBusy && !variation.analysis ? "Analyzing move…" : variationGrade ? CLASS_LABEL[variationGrade] : variation.analysis ? "Unrated" : "" }}</p>
-            <p class="last-move">Exploring {{ variation.path.join(" ") }}</p>
             <p v-if="variationRatingExplanation" class="move-explanation">{{ variationRatingExplanation }}</p>
             <p class="variation-eval">Position evaluation: {{ variationBusy && !variation.analysis ? "Analyzing…" : formatEval(whiteScore(variation.analysis, new Chess(variation.fen).turn())) || "—" }}</p>
             <p v-if="variation.analysis" class="move-explanation">The engine evaluates this position at {{ formatEval(whiteScore(variation.analysis, new Chess(variation.fen).turn())) }}{{ variation.analysis.uci ? ` and recommends ${sanFor(variation.fen, variation.analysis.uci)} next` : "" }}.</p>
             <p v-if="variationError" class="move-explanation">{{ variationError }}</p>
-            <button type="button" class="restore-button" @click="restoreGame">Back to game analysis</button>
           </template>
           <template v-else>
             <p class="last-move">{{ moveLabel }}</p>
@@ -494,7 +538,20 @@ onUnmounted(() => {
         <p v-if="failed" class="convert-note">{{ failed }}</p>
       </section>
       <section class="review-side">
-        <div v-if="moves.length && !variation" ref="moveListEl" class="move-list">
+        <div v-if="variation" ref="moveListEl" class="move-list explore-move-list">
+          <p class="settings-title">Exploring</p>
+          <button
+            v-for="entry in variationMoveEntries.slice().reverse()"
+            :key="entry.node.requestId"
+            type="button"
+            class="move-row"
+            :class="{ 'is-selected': variation.requestId === entry.node.requestId }"
+            @click="selectVariationNode(entry.node)"
+          >
+            <span>{{ entry.label }}</span>
+          </button>
+        </div>
+        <div v-else-if="moves.length" ref="moveListEl" class="move-list">
           <button
             v-for="(move, index) in moves"
             :key="move.uci + index"
