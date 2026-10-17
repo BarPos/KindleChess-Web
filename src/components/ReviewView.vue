@@ -477,8 +477,8 @@ onUnmounted(() => {
             </div>
           </div>
           <template v-if="variation">
-            <p class="last-move">Exploring {{ variation.path.join(" ") }}</p>
             <p class="move-rating" :data-grade="variationGrade || undefined">{{ variationBusy && !variation.analysis ? "Analyzing move…" : variationGrade ? CLASS_LABEL[variationGrade] : variation.analysis ? "Unrated" : "" }}</p>
+            <p class="last-move">Exploring {{ variation.path.join(" ") }}</p>
             <p v-if="variationRatingExplanation" class="move-explanation">{{ variationRatingExplanation }}</p>
             <p class="variation-eval">Position evaluation: {{ variationBusy && !variation.analysis ? "Analyzing…" : formatEval(whiteScore(variation.analysis, new Chess(variation.fen).turn())) || "—" }}</p>
             <p v-if="variation.analysis" class="move-explanation">The engine evaluates this position at {{ formatEval(whiteScore(variation.analysis, new Chess(variation.fen).turn())) }}{{ variation.analysis.uci ? ` and recommends ${sanFor(variation.fen, variation.analysis.uci)} next` : "" }}.</p>
